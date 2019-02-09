@@ -1,2 +1,2 @@
-# PacktCrawler
-packtpub.com ebook crawler with Scrapy
+# PacktScrapy
+Scrapy experiment on packt
