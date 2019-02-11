@@ -35,9 +35,8 @@ class BooklistSpider(scrapy.Spider):
         yield request
 
     def after_login(self, response):
-        print(response.headers.getlist('Set-Cookie'))
         if 'Sign Out' in response.text:
-            print('Login successful.')
+            self.logger.info('Login successful.')
             cookie_text = str(response.request.headers['Cookie'], 'UTF-8')
             cookie = ck.SimpleCookie()
             cookie.load(cookie_text)
@@ -50,51 +49,43 @@ class BooklistSpider(scrapy.Spider):
                               + f'&offset={offset}&limit={self.pagination_size}',
                           headers=headers, meta=meta, errback=self.handle_error, callback=self.after_get_prod_list)
         else:
-            print('Login Failed.')
+            self.logger.error('Login Failed.')
 
     def after_get_prod_list(self, response):
-        if response.status == 200:
-            prod_list = json.loads(response.text)['data']
-            cur_offset = response.meta['offset']
-            access_tk = response.meta['access_token']
-            refresh_tk = response.meta['refresh_token']
-            headers = {'authorization': f'Bearer {access_tk}'}
-            for prod in prod_list:
-                id = prod['productId']
-                prod_name = prod['productName']
-                meta = {'access_token': access_tk, 'refresh_token': refresh_tk,
-                        'product_id': id, 'product_name': prod_name}
-                yield Request(url=f'https://services.packtpub.com/products-v1/products/{id}/types',
-                              headers=headers, meta=meta,
-                              errback=self.handle_error, callback=self.after_get_type)
-            if len(prod_list) == self.pagination_size:
-                meta = {'access_token': access_tk, 'refresh_token': refresh_tk,
-                        'offset': cur_offset + self.pagination_size}
-                yield Request(url='https://services.packtpub.com/entitlements-v1/users/me/products?sort=createdAt:DESC'
-                                  + f'&offset={cur_offset + self.pagination_size}&limit={self.pagination_size}',
-                              headers=headers, meta=meta,
-                              errback=self.handle_error, callback=self.after_get_prod_list)
-
-        else:
-            print('Failed to get My Product data.')
+        prod_list = json.loads(response.text)['data']
+        cur_offset = response.meta['offset']
+        access_tk = response.meta['access_token']
+        refresh_tk = response.meta['refresh_token']
+        headers = {'authorization': f'Bearer {access_tk}'}
+        for prod in prod_list:
+            id = prod['productId']
+            prod_name = prod['productName']
+            meta = {'access_token': access_tk, 'refresh_token': refresh_tk,
+                    'product_id': id, 'product_name': prod_name}
+            yield Request(url=f'https://services.packtpub.com/products-v1/products/{id}/types',
+                          headers=headers, meta=meta,
+                          errback=self.handle_error, callback=self.after_get_type)
+        if len(prod_list) == self.pagination_size:
+            meta = {'access_token': access_tk, 'refresh_token': refresh_tk,
+                    'offset': cur_offset + self.pagination_size}
+            yield Request(url='https://services.packtpub.com/entitlements-v1/users/me/products?sort=createdAt:DESC'
+                              + f'&offset={cur_offset + self.pagination_size}&limit={self.pagination_size}',
+                          headers=headers, meta=meta,
+                          errback=self.handle_error, callback=self.after_get_prod_list)
 
     def after_get_type(self, response):
-        if response.status == 200:
-            type_list = json.loads(response.text)['data'][0]['fileTypes']
-            access_tk = response.meta['access_token']
-            refresh_tk = response.meta['refresh_token']
-            prod_name = response.meta['product_name']
-            prod_id = response.meta['product_id']
-            headers = {'authorization': f'Bearer {access_tk}'}
-            for file_type in type_list:
-                meta = {'access_token': access_tk, 'refresh_token': refresh_tk,
-                        'product_id': id, 'product_name': prod_name, 'file_type': file_type}
-                yield Request(url=f'https://services.packtpub.com/products-v1/products/{prod_id}/files/{file_type}',
-                              headers=headers, meta=meta,
-                              errback=self.handle_error, callback=self.after_get_real_dl_url)
-        else:
-            prod_name = response.meta['product_name']
-            print(f'Failed to get resource type of {prod_name}.')
+        type_list = json.loads(response.text)['data'][0]['fileTypes']
+        access_tk = response.meta['access_token']
+        refresh_tk = response.meta['refresh_token']
+        prod_name = response.meta['product_name']
+        prod_id = response.meta['product_id']
+        headers = {'authorization': f'Bearer {access_tk}'}
+        for file_type in type_list:
+            meta = {'access_token': access_tk, 'refresh_token': refresh_tk,
+                    'product_id': id, 'product_name': prod_name, 'file_type': file_type}
+            yield Request(url=f'https://services.packtpub.com/products-v1/products/{prod_id}/files/{file_type}',
+                          headers=headers, meta=meta,
+                          errback=self.handle_error, callback=self.after_get_real_dl_url)
 
     def after_get_real_dl_url(self, response):
         if response.status == 200:
@@ -108,7 +99,7 @@ class BooklistSpider(scrapy.Spider):
             yield loader.load_item()
         else:
             prod_name = response.meta['product_name']
-            print(f'Failed to get resource url of {prod_name}.')
+            self.logger.error(f'Failed to get resource url of {prod_name}.')
 
     def handle_error(self, failure):
         if failure.check(HttpError):
@@ -126,9 +117,9 @@ class BooklistSpider(scrapy.Spider):
                               meta=meta,
                               body=json.dumps(json_data),
                               callback=self.after_refresh_token)
-            else:
-                response = failure.value.response
-                self.logger.error('Unknown error on %s', response.url)
+        else:
+            response = failure.value.response
+            self.logger.error('Unknown error on %s', response.url)
 
     def after_refresh_token(self, response):
         tokens = json.loads(response.text)['data']
@@ -138,4 +129,5 @@ class BooklistSpider(scrapy.Spider):
         ori_request.meta['access_token'] = access_tk
         ori_request.meta['refresh_token'] = refresh_tk
         ori_request.headers['authorization'] = f'Bearer {access_tk}'
+        self.logger.error(f'Token refreshed to: {ori_request.meta}')
         yield ori_request

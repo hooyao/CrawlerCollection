@@ -101,5 +101,5 @@ DEPTH_STATS_VERBOSE = True
 # HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 LOG_LEVEL = 'DEBUG'
-DOWNLOAD_TIMEOUT=1800
+#DOWNLOAD_TIMEOUT=1800
 

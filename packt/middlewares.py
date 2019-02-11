@@ -4,6 +4,7 @@
 #
 # See documentation in:
 # https://doc.scrapy.org/en/latest/topics/spider-middleware.html
+import logging
 
 from scrapy import signals
 
@@ -61,6 +62,11 @@ class PacktDownloaderMiddleware(object):
     # scrapy acts as if the downloader middleware does not modify the
     # passed objects.
 
+    @property
+    def logger(self):
+        logger = logging.getLogger('PacktDownloaderMiddleware')
+        return logging.LoggerAdapter(logger, {'middleware': self})
+
     @classmethod
     def from_crawler(cls, crawler):
         # This method is used by Scrapy to create your spiders.
@@ -98,6 +104,7 @@ class PacktDownloaderMiddleware(object):
         # - return None: continue processing this exception
         # - return a Response object: stops process_exception() chain
         # - return a Request object: stops process_exception() chain
+        self.logger.error('process_exception')
         pass
 
     def spider_opened(self, spider):
