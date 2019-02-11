@@ -1,2 +1,8 @@
-# PacktScrapy
-Scrapy experiment on packt
+# Awesome Crawler Collection
+This collection contains crawlers for
+
+* packt (working)
+* rarbg (implementing)
+
+## Packt
+
