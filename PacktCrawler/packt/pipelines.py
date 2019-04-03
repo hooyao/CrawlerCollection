@@ -16,8 +16,10 @@ class PacktPipeline(FilesPipeline):
         # headers = {'authorization': f'Bearer {access_tk}'}
         req = Request(url, priority=0)
         req.meta['book_name'] = item['title'][0]
-        if file_type == 'code' or file_type == 'video':
-            req.meta['ext'] = 'zip'
+        if file_type == 'code':
+            req.meta['ext'] = 'code.zip'
+        elif file_type == 'video':
+            req.meta['ext'] = 'video.zip'
         else:
             req.meta['ext'] = file_type
         req_list.append(req)

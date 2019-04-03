@@ -18,6 +18,8 @@ class BooklistSpider(scrapy.Spider):
 
     pagination_size = 5
 
+    hard_coded_types = ['code', 'epub', 'mobi', 'pdf']
+
     def parse(self, response):
         settings = get_project_settings()
         request = scrapy.FormRequest.from_response(
@@ -74,13 +76,13 @@ class BooklistSpider(scrapy.Spider):
                           errback=self.handle_error, callback=self.after_get_prod_list)
 
     def after_get_type(self, response):
-        type_list = json.loads(response.text)['data'][0]['fileTypes']
+        # type_list = json.loads(response.text)['data'][0]['fileTypes']
         access_tk = response.meta['access_token']
         refresh_tk = response.meta['refresh_token']
         prod_name = response.meta['product_name']
         prod_id = response.meta['product_id']
         headers = {'authorization': f'Bearer {access_tk}'}
-        for file_type in type_list:
+        for file_type in self.hard_coded_types:
             meta = {'access_token': access_tk, 'refresh_token': refresh_tk,
                     'product_id': id, 'product_name': prod_name, 'file_type': file_type}
             yield Request(url=f'https://services.packtpub.com/products-v1/products/{prod_id}/files/{file_type}',
