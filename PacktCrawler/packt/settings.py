@@ -16,6 +16,7 @@ NEWSPIDER_MODULE = 'packt.spiders'
 
 EMAIL = 'your@email.com'
 PASSWORD = 'yourpassword'
+MAX_PRODUCT_TO_FETCH = 20
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
@@ -29,7 +30,7 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-#DOWNLOAD_DELAY = 2
+# DOWNLOAD_DELAY = 2
 # The download delay setting will honor only one of:
 CONCURRENT_REQUESTS_PER_DOMAIN = 2
 CONCURRENT_REQUESTS_PER_IP = 2
@@ -71,10 +72,10 @@ DOWNLOADER_MIDDLEWARES = {
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
     'packt.pipelines.PacktPipeline': 1
-    #'scrapy.pipelines.files.FilesPipeline': 1
+    # 'scrapy.pipelines.files.FilesPipeline': 1
 }
 
-FILES_STORE = '/Users/HuYao/packt_download'
+FILES_STORE = '/Users/huy/packt_download'
 MEDIA_ALLOW_REDIRECTS = True
 REDIRECT_PRIORITY_ADJUST = 100
 SCHEDULER_DEBUG = True
@@ -94,6 +95,7 @@ DEPTH_STATS_VERBOSE = True
 
 # Enable and configure HTTP caching (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings
+# Cache must not be enabled
 # HTTPCACHE_ENABLED = True
 # HTTPCACHE_EXPIRATION_SECS = 0
 # HTTPCACHE_DIR = 'httpcache'
@@ -101,5 +103,11 @@ DEPTH_STATS_VERBOSE = True
 # HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
 LOG_LEVEL = 'DEBUG'
-#DOWNLOAD_TIMEOUT=1800
+DOWNLOAD_TIMEOUT = 3600
 
+# RETRY_ENABLED = True
+# RETRY_TIMES = 3
+
+DOWNLOAD_WARNSIZE = 1073741824
+# max download size = 4GB
+DOWNLOAD_MAXSIZE = 1073741824 * 4

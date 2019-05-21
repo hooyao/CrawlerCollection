@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import http.cookies as ck
 import json
 
 import scrapy
@@ -14,39 +13,37 @@ from packt.items import PacktBookItem
 class BooklistSpider(scrapy.Spider):
     name = 'mybooks'
     allowed_domains = ['packtpub.com']
-    start_urls = ['https://www.packtpub.com']
+    start_urls = ['https://account.packtpub.com/login']
 
     pagination_size = 5
 
     hard_coded_types = ['code', 'epub', 'mobi', 'pdf']
 
-    def parse(self, response):
-        settings = get_project_settings()
-        request = scrapy.FormRequest.from_response(
-            response,
-            url='https://www.packtpub.com/',
-            formdata={'email': settings.get('EMAIL'),
-                      'password': settings.get('PASSWORD'),
-                      'op': 'Login',
-                      'form_build_id': 'form-95d37c613e0af5ed429ae7b2da3e8102',
-                      'form_id': 'packt_user_login_form'
-                      },
-            callback=self.after_login
+    tokens = {}
 
-        )
-        yield request
+    settings = None
+
+    def __init__(self, *a, **kw):
+        super(BooklistSpider, self).__init__(*a, **kw)
+        self.settings = get_project_settings()
+
+    def parse(self, response):
+        login_payload = {"username": self.settings.get('EMAIL'), "password": self.settings.get('PASSWORD')}
+        yield Request(url='https://services.packtpub.com/auth-v1/users/tokens',
+                      method='POST',
+                      headers={'Accept': 'application/json',
+                               'Content-Type': 'application/json'},
+                      body=json.dumps(login_payload),
+                      callback=self.after_login)
 
     def after_login(self, response):
-        if 'Sign Out' in response.text:
+        if response.status == 200:
             self.logger.info('Login successful.')
-            cookie_text = str(response.request.headers['Cookie'], 'UTF-8')
-            cookie = ck.SimpleCookie()
-            cookie.load(cookie_text)
-            access_tk = cookie['access_token_live'].value
-            refresh_tk = cookie['refresh_token_live'].value
+            self.tokens = json.loads(response.text)['data']
+            access_tk = self.tokens['access']
             headers = {'authorization': f'Bearer {access_tk}'}
             offset = 0
-            meta = {'access_token': access_tk, 'refresh_token': refresh_tk, 'offset': offset}
+            meta = {'offset': offset}
             yield Request(url='https://services.packtpub.com/entitlements-v1/users/me/products?sort=createdAt:DESC'
                               + f'&offset={offset}&limit={self.pagination_size}',
                           headers=headers, meta=meta, errback=self.handle_error, callback=self.after_get_prod_list)
@@ -55,36 +52,47 @@ class BooklistSpider(scrapy.Spider):
 
     def after_get_prod_list(self, response):
         prod_list = json.loads(response.text)['data']
-        cur_offset = response.meta['offset']
-        access_tk = response.meta['access_token']
-        refresh_tk = response.meta['refresh_token']
+        last_offset = response.meta['offset']
+        access_tk = self.tokens['access']
         headers = {'authorization': f'Bearer {access_tk}'}
         for prod in prod_list:
             id = prod['productId']
             prod_name = prod['productName']
-            meta = {'access_token': access_tk, 'refresh_token': refresh_tk,
-                    'product_id': id, 'product_name': prod_name}
-            yield Request(url=f'https://services.packtpub.com/products-v1/products/{id}/types',
-                          headers=headers, meta=meta,
-                          errback=self.handle_error, callback=self.after_get_type)
-        if len(prod_list) == self.pagination_size:
-            meta = {'access_token': access_tk, 'refresh_token': refresh_tk,
-                    'offset': cur_offset + self.pagination_size}
+            headers = {'authorization': f'Bearer {access_tk}',
+                       'Origin': 'https://account.packtpub.com',
+                       'Referer': 'https://account.packtpub.com/account/products'}
+            file_types = self.hard_coded_types[:]
+            if 'Video' in prod_name:
+                file_types.append('video')
+            for file_type in file_types:
+                meta = {'product_id': id, 'product_name': prod_name, 'file_type': file_type}
+                yield Request(url=f'https://services.packtpub.com/products-v1/products/{id}/files/{file_type}',
+                              headers=headers, meta=meta,
+                              errback=self.handle_error, callback=self.after_get_real_dl_url)
+
+        max_product_to_fetch = self.settings.get('MAX_PRODUCT_TO_FETCH', -1)
+        cur_offset = last_offset + self.pagination_size
+        if len(prod_list) == self.pagination_size and last_offset < max_product_to_fetch:
+            meta = {'offset': cur_offset}
             yield Request(url='https://services.packtpub.com/entitlements-v1/users/me/products?sort=createdAt:DESC'
-                              + f'&offset={cur_offset + self.pagination_size}&limit={self.pagination_size}',
+                              + f'&offset={cur_offset}&limit={self.pagination_size}',
                           headers=headers, meta=meta,
                           errback=self.handle_error, callback=self.after_get_prod_list)
 
+    # Deprecated not needed anymore
     def after_get_type(self, response):
         # type_list = json.loads(response.text)['data'][0]['fileTypes']
-        access_tk = response.meta['access_token']
-        refresh_tk = response.meta['refresh_token']
+        access_tk = self.tokens['access']
         prod_name = response.meta['product_name']
         prod_id = response.meta['product_id']
-        headers = {'authorization': f'Bearer {access_tk}'}
-        for file_type in self.hard_coded_types:
-            meta = {'access_token': access_tk, 'refresh_token': refresh_tk,
-                    'product_id': id, 'product_name': prod_name, 'file_type': file_type}
+        headers = {'authorization': f'Bearer {access_tk}',
+                   'Origin': 'https://account.packtpub.com',
+                   'Referer': 'https://account.packtpub.com/account/products'}
+        file_types = self.hard_coded_types[:]
+        if 'Video' in prod_name:
+            file_types.append('video')
+        for file_type in file_types:
+            meta = {'product_id': id, 'product_name': prod_name, 'file_type': file_type}
             yield Request(url=f'https://services.packtpub.com/products-v1/products/{prod_id}/files/{file_type}',
                           headers=headers, meta=meta,
                           errback=self.handle_error, callback=self.after_get_real_dl_url)
@@ -108,8 +116,8 @@ class BooklistSpider(scrapy.Spider):
             # most likely token expired
             if failure.value.response.status == 401:
                 ori_request = failure.request
-                access_tk = ori_request.meta['access_token']
-                refresh_tk = ori_request.meta['refresh_token']
+                access_tk = self.tokens['access']
+                refresh_tk = self.tokens['refresh']
                 headers = {'authorization': f'Bearer {access_tk}', 'Content-Type': 'application/json'}
                 meta = {'ori_request': ori_request}
                 json_data = {'refresh': refresh_tk}
@@ -124,12 +132,9 @@ class BooklistSpider(scrapy.Spider):
             self.logger.error('Unknown error on %s', response.url)
 
     def after_refresh_token(self, response):
-        tokens = json.loads(response.text)['data']
-        access_tk = tokens['access']
-        refresh_tk = tokens['refresh']
+        self.tokens = json.loads(response.text)['data']
+        access_tk = self.tokens['access']
         ori_request = response.meta['ori_request']
-        ori_request.meta['access_token'] = access_tk
-        ori_request.meta['refresh_token'] = refresh_tk
         ori_request.headers['authorization'] = f'Bearer {access_tk}'
-        self.logger.error(f'Token refreshed to: {ori_request.meta}')
+        self.logger.error(f'Token refreshed to: {self.tokens}')
         yield ori_request
