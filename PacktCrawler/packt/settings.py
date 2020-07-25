@@ -14,12 +14,12 @@ BOT_NAME = 'packt'
 SPIDER_MODULES = ['packt.spiders']
 NEWSPIDER_MODULE = 'packt.spiders'
 
+MAX_PRODUCT_TO_FETCH = 20
 EMAIL = 'your@email.com'
 PASSWORD = 'yourpassword'
-MAX_PRODUCT_TO_FETCH = 20
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
@@ -75,7 +75,7 @@ ITEM_PIPELINES = {
     # 'scrapy.pipelines.files.FilesPipeline': 1
 }
 
-FILES_STORE = '/Users/huy/packt_download'
+FILES_STORE = 'Y:\\DATA_11_4T\\BaiduYun\\BooksSorted\\Packt-Books'
 MEDIA_ALLOW_REDIRECTS = True
 REDIRECT_PRIORITY_ADJUST = 100
 SCHEDULER_DEBUG = True

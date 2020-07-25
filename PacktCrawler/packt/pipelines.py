@@ -6,6 +6,7 @@
 # See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 from scrapy import Request
 from scrapy.pipelines.files import FilesPipeline
+import re
 
 
 class PacktPipeline(FilesPipeline):
@@ -26,6 +27,7 @@ class PacktPipeline(FilesPipeline):
         return req_list
 
     def file_path(self, request, response=None, info=None):
-        book_name = request.meta['book_name']
+        book_name: str = request.meta['book_name']
         ext = request.meta['ext']
-        return book_name + '/' + book_name + '.' + ext
+        safe_book_name = re.sub(r'[\\\/\:\*\?\"\<\>\|]', '-', book_name)
+        return safe_book_name + '/' + safe_book_name + '.' + ext

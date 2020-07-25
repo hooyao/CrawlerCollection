@@ -28,11 +28,25 @@ class BooklistSpider(scrapy.Spider):
         self.settings = get_project_settings()
 
     def parse(self, response):
-        login_payload = {"username": self.settings.get('EMAIL'), "password": self.settings.get('PASSWORD')}
+        login_payload = {
+            "username": self.settings.get('EMAIL'),
+            "password": self.settings.get('PASSWORD')
+        }
         yield Request(url='https://services.packtpub.com/auth-v1/users/tokens',
                       method='POST',
-                      headers={'Accept': 'application/json',
-                               'Content-Type': 'application/json'},
+                      headers={'authority': 'services.packtpub.com',
+                               'pragma': 'no-cache',
+                               'cache-control': 'no-cache',
+                               'accept': 'application/json, text/plain, */*',
+                               'dnt': '1',
+                               'user-agent': self.settings.get('USER_AGENT'),
+                               'content-type': 'application/json',
+                               'origin': 'https://account.packtpub.com',
+                               'sec-fetch-site': 'same-site',
+                               'sec-fetch-mode': 'cors',
+                               'sec-fetch-dest': 'empty',
+                               'referer': 'https://account.packtpub.com/login?returnUrl=referrer',
+                               'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7,zh-TW;q=0.6'},
                       body=json.dumps(login_payload),
                       callback=self.after_login)
 
